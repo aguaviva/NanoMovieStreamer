@@ -1,6 +1,6 @@
-# MovieStreamer
+# NanoMovieStreamer
 
-MovieStreamer is a single-file application designed to stream movies directly to your browser. It supports live transcoding to ensure smooth playback, regardless of the original file format.
+NanoMovieStreamer is a single-file application designed to stream movies directly to your browser. It supports live transcoding to ensure smooth playback, regardless of the original file format.
 
 ## Features
 
@@ -22,3 +22,5 @@ Clone the repository and navigate to the project directory:
 ```bash
 git clone https://github.com/aguaviva/MovieStreamer.git
 cd MovieStreamer
+
+edit the `MOVIE_FOLDER` string to make it point to your movies

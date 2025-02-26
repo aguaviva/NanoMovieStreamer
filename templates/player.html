@@ -63,108 +63,148 @@
             <source id="videoSource" src="stream?filename={{filename}}&codec={{codec}}&start=0" type="video/mp4">
             Your browser does not support the video tag.
         </video>
+        <div id="errorMessage" style="color: red; display: none;"></div>
         <br>
         <div id="controls">
             <button id="playStopButton">Play</button>
-            <input type="range" id="seekSlider" value="0" min="0" max="200" step="1">
+            <input type="range" id="seekSlider" value="0" min="0" max={{duration}} step="1">
             <span id="elapsedTime">00:00</span>
 	    <button id="fullscreenButton">Fullscreen</button>
         </div>
     </div>
 
     <script>
-        const video = document.getElementById('video');
-        const videoSource = document.getElementById('videoSource');
-        const seekSlider = document.getElementById('seekSlider');
-        const playStopButton = document.getElementById('playStopButton');
-        const elapsedTime = document.getElementById('elapsedTime');
-	    const fullscreenButton = document.getElementById('fullscreenButton');
-        const controls = document.getElementById('controls');
-	    
-        var total_time = {{duration}};
-	    var delta = 0;
-	    var pos = 0
+        "use strict";
+        window.addEventListener('load', function() {
+            console.log("page is fully loaded");
 
-        video.addEventListener('loadedmetadata', function() {
-            seekSlider.max = total_time;
-        });
+            const video = document.getElementById('video');
+            const videoSource = document.getElementById('videoSource');
+            const seekSlider = document.getElementById('seekSlider');
+            const playStopButton = document.getElementById('playStopButton');
+            const elapsedTime = document.getElementById('elapsedTime');
+            const fullscreenButton = document.getElementById('fullscreenButton');
+            const controls = document.getElementById('controls');
+            
+            var total_time = {{duration}};
+            var delta = 0;
+            var pos = 0
 
-        // Play/stop button functionality
-        playStopButton.addEventListener('click', function() {
-            if (video.paused) {
+            var errorMessage = document.getElementById('errorMessage');
+
+            video.addEventListener('error', function(event) {
+                console.log('Error code: ' + video.error.code);
+                console.log('Error message: ' + video.error.message);
+
+                var error = video.error;
+                switch (error.code) {
+                    case error.MEDIA_ERR_ABORTED:
+                        errorMessage.textContent = 'Error: The video playback was aborted.';
+                        break;
+                    case error.MEDIA_ERR_NETWORK:
+                        errorMessage.textContent = 'Error: A network error caused the video download to fail.';
+                        break;
+                    case error.MEDIA_ERR_DECODE:
+                        errorMessage.textContent = 'Error: The video playback was aborted due to a corruption problem or because the video used features your browser did not support.';
+                        break;
+                    case error.MEDIA_ERR_SRC_NOT_SUPPORTED:
+                        errorMessage.textContent = 'Error: The video could not be loaded because the format is not supported.';
+                        break;
+                    default:
+                        errorMessage.textContent = 'Error: An unknown error occurred.';
+                        break;
+                }
+                errorMessage.style.display = 'block';
+            });
+
+            var canPlay = video.canPlayType('video/mp4');
+            if (canPlay === '') {
+                errorMessage.textContent = 'Error: Your browser cannot play this video format.';
+                errorMessage.style.display = 'block';
+            }
+
+            video.addEventListener('loadedmetadata', function() {
+            });
+
+            // Play/stop button functionality
+            playStopButton.addEventListener('click', function() {
+                if (video.paused) {
+                    video.play();
+                    playStopButton.textContent = 'Stop';
+                } else {
+                    video.pause();
+                    playStopButton.textContent = 'Play';
+                }
+            });
+
+            seekSlider.addEventListener('input', function() {
+                pos = parseFloat(seekSlider.value);
+                videoSource.src = "stream?filename={{filename}}&codec={{codec}}&start=" + pos;
+                video.load();
                 video.play();
-                playStopButton.textContent = 'Stop';
-            } else {
-                video.pause();
-                playStopButton.textContent = 'Play';
+            });
+
+            video.addEventListener('timeupdate', function() {
+                delta = video.currentTime;
+                var currentTime = pos + delta;
+                seekSlider.value = currentTime;
+
+                const hours   = Math.floor(currentTime / 3600).toString().padStart(1, '0');
+                const minutes = Math.floor((currentTime % 3600) / 60).toString().padStart(2, '0');
+                const seconds = Math.floor(currentTime % 60).toString().padStart(2, '0');
+                elapsedTime.textContent = `${hours}:${minutes}:${seconds}`;
+            });
+
+            // Display controls in fullscreen
+            video.addEventListener('fullscreenchange', function() {
+                if (document.fullscreenElement) {
+                    controls.classList.add('fullscreen');
+                    videoContainer.classList.add('fullscreen');
+                } else {
+                    controls.classList.remove('fullscreen');
+                    videoContainer.classList.remove('fullscreen');
+                }
+            });
+
+            // Handle fullscreen changes on different browsers
+            video.addEventListener('webkitfullscreenchange', function() {
+                if (document.webkitFullscreenElement) {
+                    controls.classList.add('fullscreen');
+                    videoContainer.classList.add('fullscreen');
+                } else {
+                    controls.classList.remove('fullscreen');
+                    videoContainer.classList.remove('fullscreen');
+                }
+            });
+
+            // Fullscreen button functionality
+            fullscreenButton.addEventListener('click', function() {
+                if (videoContainer.requestFullscreen) {
+                    videoContainer.requestFullscreen();
+                } else if (videoContainer.webkitRequestFullscreen) { // Safari
+                    videoContainer.webkitRequestFullscreen();
+                }
+            });
+
+            var hideControlsTimeout = null;
+            function showControls() {
+                controls.style.opacity = '1';
+                clearTimeout(hideControlsTimeout);
+                hideControlsTimeout = setTimeout(hideControls, 5000);
             }
-        });
 
-
-        seekSlider.addEventListener('input', function() {
-            pos = parseFloat(seekSlider.value);
-            videoSource.src = "stream?filename={{filename}}&codec={{codec}}&start=" + pos;
-            video.load();
-            video.play();
-        });
-
-        video.addEventListener('timeupdate', function() {
-            delta = video.currentTime;
-            var currentTime = pos + delta;
-            seekSlider.value = currentTime;
-
-            const hours   = Math.floor(currentTime / 3600).toString().padStart(1, '0');
-            const minutes = Math.floor((currentTime % 3600) / 60).toString().padStart(2, '0');
-            const seconds = Math.floor(currentTime % 60).toString().padStart(2, '0');
-            elapsedTime.textContent = `${hours}:${minutes}:${seconds}`;
-        });
-
-        // Display controls in fullscreen
-        video.addEventListener('fullscreenchange', function() {
-            if (document.fullscreenElement) {
-                controls.classList.add('fullscreen');
-                videoContainer.classList.add('fullscreen');
-            } else {
-                controls.classList.remove('fullscreen');
-                videoContainer.classList.remove('fullscreen');
+            function hideControls() {
+                controls.style.opacity = '0';
             }
-        });
 
-        // Handle fullscreen changes on different browsers
-        video.addEventListener('webkitfullscreenchange', function() {
-            if (document.webkitFullscreenElement) {
-                controls.classList.add('fullscreen');
-                videoContainer.classList.add('fullscreen');
-            } else {
-                controls.classList.remove('fullscreen');
-                videoContainer.classList.remove('fullscreen');
-            }
-        });
+            document.addEventListener('mousemove', showControls);
+            document.addEventListener('keydown', showControls);
 
-        // Fullscreen button functionality
-        fullscreenButton.addEventListener('click', function() {
-            if (videoContainer.requestFullscreen) {
-                videoContainer.requestFullscreen();
-            } else if (videoContainer.webkitRequestFullscreen) { // Safari
-                videoContainer.webkitRequestFullscreen();
-            }
-        });
-
-    
-        function showControls() {
-            controls.style.opacity = '1';
-            clearTimeout(hideControlsTimeout);
             hideControlsTimeout = setTimeout(hideControls, 5000);
-        }
 
-        function hideControls() {
-            controls.style.opacity = '0';
-        }
 
-        document.addEventListener('mousemove', showControls);
-        document.addEventListener('keydown', showControls);
+        });
 
-        hideControlsTimeout = setTimeout(hideControls, 5000);
 
     </script>
 </body>
